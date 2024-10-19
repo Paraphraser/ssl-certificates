@@ -92,17 +92,15 @@ Tip:
 
 The word "certificate" gets a lot of use. In a practical sense, a certificate is the result of binding a public key with a "subject" and signing the pairing with a private key. Although you won't find these terms in official OpenSSL documentation, this guide uses the following definitions to try to keep the concepts clear:
 
-<dl>
+* **domain certificate**
 
-	<dt>domain certificate</dt>
-		<dd>A domain certificate is a by-product of creating a Certificate Authority ("CA"). It is a <b>domain</b> certificate because the "subject" is your domain. The domain certificate is signed by the CA's private key (rather than that of another authority further up the chain of trust) so it is said to be both "self-signed" and a "root certificate".</p>
+	A domain certificate is a by-product of creating a Certificate Authority ("CA"). It is a **domain** certificate because the "subject" is your domain. The domain certificate is signed by the CA's private key (rather than that of another authority further up the chain of trust) so it is said to be both "self-signed" and a "root certificate".
 
-		Your CA is also used to sign your <i>server certificates</i> (which are discussed next). When you make your <i>domain certificate</i> available to a browser <b>and</b> explicitly mark it as trusted, the browser will implicitly trust any <i>server certificates</i> that were signed by your CA.</dd>
+	Your CA is also used to sign your *server certificates* (which are discussed next). When you make your *domain certificate* available to a browser **and** explicitly mark it as trusted, the browser will implicitly trust any **server certificates** that were signed by your CA.
 
-	<dt>server certificate</dt>
-		<dd>A server certificate is a non-root certificate which is signed by your CA. It is a <b>server</b> certificate because the "subject" is the server's fully-qualified domain name. The certificate attests that the Proxmox-VE server is what it claims to be. You install the server certificate and server private key on the Proxmox-VE server for which it was generated.</dd>
+* **server certificate**
 
-</dl>
+	A server certificate is a non-root certificate which is signed by your CA. It is a **server** certificate because the "subject" is the server's fully-qualified domain name. The certificate attests that the Proxmox-VE server is what it claims to be. You install the server certificate and server private key on the Proxmox-VE server for which it was generated.
 
 <a name="exampleValues"></a>
 ## example values

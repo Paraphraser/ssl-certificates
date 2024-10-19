@@ -1,4 +1,4 @@
-# Creating private SSL certificates for your Proxmox servers
+# Private SSL certificates for Proxmox servers
 
 ## scenario
 

@@ -31,7 +31,7 @@ else
 fi
 
 # the installation directory for certificates is...
-INSTALL_DIR="/etc/pve/nodes/${HOSTNAME}"
+INSTALL_DIR="/etc/pve/nodes/$(hostname -s)"
 
 # does that directory exist?
 if [ ! -d "${INSTALL_DIR}" ] ; then
@@ -55,7 +55,7 @@ for F in ${INSTALL_FILES} ; do
 done
 
 # check whether the certificate matches this host
-MATCH=$(openssl x509 -noout -in "${PROXMOX_SERVER_CRT}" -checkhost "${HOSTNAME}")
+MATCH=$(openssl x509 -noout -in "${PROXMOX_SERVER_CRT}" -checkhost "$(hostname -s)")
 
 # does the certificate match?
 if [[ "${MATCH}" == *"does NOT match certificate" ]] ; then 

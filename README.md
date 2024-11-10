@@ -119,7 +119,7 @@ The examples in this guide assume:
 You can substitute your own domain, hostnames and IP addresses wherever you see those values. Fairly obviously, the IP Address should reach your Proxmox-VE server. Less obviously, the hostname should always be the same name that your Proxmox-VE server reports when you run:
 
 ``` console
-$ echo $HOSTNAME
+$ hostname -s
 ```
 
 <a name="makeCA"></a>
@@ -437,7 +437,11 @@ Preconditions:
 	```
 
 2. The files `pveproxy-ssl.key` and `pveproxy-ssl.pem` (respectively, the Proxmox-VE server's private key and certificate) must be present in the working directory.
-3. The subject of the server certificate represented by `pveproxy-ssl.pem` must match the value of `$HOSTNAME`.
+3. The subject of the server certificate represented by `pveproxy-ssl.pem` must match the value you get from running:
+
+	``` console
+	$ hostname -s
+	```
 
 Usage:
 
@@ -450,7 +454,7 @@ Usage:
 The script checks for the presence of `pveproxy-ssl.key` and `pveproxy-ssl.pem`, changes their ownership and mode to meet installation requirements,  confirms that the server certificate is intended for the host on which script is running, then moves both files into:
 
 ```
-/etc/pve/nodes/${HOSTNAME}/
+/etc/pve/nodes/$(hostname -s)/
 ```
 
 This implicitly replaces any older versions of the files. The script then activates the newly-installed SSL components by calling:

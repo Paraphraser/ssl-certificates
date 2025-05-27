@@ -3,75 +3,106 @@
 # the name of this script is ...
 SCRIPT=$(basename "${0}")
 
+# certificate-lifetime parameters (in case of moving goal-posts)
+DEFDAYS=3650
+# MAXDAYS=not used in this script - there does not seem to be a maximum
+
 # check parameters
-if [ $# -lt 1 -o $# -gt 2 ] ; then
-   echo ""
-   echo "Usage: ${SCRIPT} domain {days}"
-   echo ""
-   echo "       Examples: ${SCRIPT} my.domain.com"
-   echo "                 ${SCRIPT} my.domain.com 825"
-   echo ""
-   exit 1
-fi
+if [ $# -ne 1 ] ; then
 
-# the first argument is the domain
-PROMOX_DOMAIN="${1}"
+	cat <<-USAGE
 
-# the optional second argument is the CA certificate lifetime in days
-DAYS=${2:-3650}
+	Usage: {DAYS=n} ${SCRIPT} domain
 
-# there is some possibility of a non-numeric number of days so force the issue
-DAYS=$((DAYS*1))
+	Examples: ${SCRIPT} your.home.arpa
+	          DAYS=${DEFDAYS} ${SCRIPT} your.home.arpa
 
-# validate days
-if [ ${DAYS} -lt 1 ] ; then
+	USAGE
 
-	echo "Error: requested CA certificate duration should be at least 1 day."
 	exit 1
 
 fi
 
-# and a folder should exist in the working directoru
-CA_DIR="${PWD}/${PROMOX_DOMAIN}/CA"
+# the first argument is the domain
+DOMAIN="${1}"
 
-# create CA_DIR if it does not exist
+# the domain directory is
+DOMAIN_DIR="${PWD}/${DOMAIN}"
+GIT_IGNORE="${DOMAIN_DIR}/.gitignore"
+
+# and the CA dir is
+CA_DIR="${DOMAIN_DIR}/CA"
+
+# create any CA_DIR components if they do not exist
 mkdir -p "${CA_DIR}"
 
-# make it the working directory
+# it's a good idea to the domain directory from git (but never overwrite
+# because the user may comment-out the wildcard)
+[ -f "${GIT_IGNORE}" ] || echo "*" >"${GIT_IGNORE}"
+
+# make the CA directory the working directory
 cd "${CA_DIR}"
 
 # CA_DIR may contain the following files
-CA_PRIVATE_KEY_PEM="${PROMOX_DOMAIN}.key"
-CA_CERTIFICATE_PEM="${PROMOX_DOMAIN}.crt"
-CA_CERTIFICATE_DER="${PROMOX_DOMAIN}.der"
+CA_PRIVATE_KEY_PEM="${DOMAIN}.key"
+CA_CERTIFICATE_PEM="${DOMAIN}.crt"
+CA_CERTIFICATE_DER="${DOMAIN}.der"
+CA_DAYS_CACHE=".days"
+
+# DAYS can be set from (1) environment (2) cache (3) default
+DAYS=${DAYS:-$(cat "${CA_DIR}/${CA_DAYS_CACHE}" 2>/dev/null)}
+DAYS=${DAYS:-$DEFDAYS}
+
+# validate days
+DAYS=$((DAYS*1))
+if [ ${DAYS} -lt 1 ] ; then
+	echo "Error: requested CA certificate duration should be at least 1 day."
+	exit 1
+fi
+
+# cache result
+echo "${DAYS}" >"${CA_DIR}/${CA_DAYS_CACHE}"
 
 # does the CA private key exist?
 if [ -f "${CA_PRIVATE_KEY_PEM}" ] ; then
 
 	# yes! use it
-	echo "Using existing private key for ${PROMOX_DOMAIN} Certificate Authority"
+	echo "Using existing private key for your Certificate Authority"
 
 else
 
 	# no! generate one
-	echo "Generating private key for ${PROMOX_DOMAIN} Certificate Authority"
+	echo "Generating a private key for your Certificate Authority"
 	openssl genrsa -out "${CA_PRIVATE_KEY_PEM}" 4096
 
 fi
 
-# report what is happening depending on whether certificate already exists
-if [ -f "${CA_CERTIFICATE_PEM}" ] ; then
-	echo "Updating existing self-signed certificate for the ${PROMOX_DOMAIN} domain"
-else
-	echo "Creating self-signed certificate for the ${PROMOX_DOMAIN} domain"
-fi
+# construct a serial number for the certificate (needed on the CA
+# certificate to help check for macOS keychain duplicates)
+SERIAL=$(date "+%Y%m%d%H%M%S")
+
+# report what is happening depending on whether a certificate already exists
+[ -f "${CA_CERTIFICATE_PEM}" ] && echo -n "Updating" || echo -n "Generating"
+echo " self-signed root certificate for the domain: ${DOMAIN}"
 
 # create or update the CA certificate, as appropriate
 openssl req -new -x509 -sha256 \
-	-subj "/CN=${PROMOX_DOMAIN}" \
+	-subj "/CN=${DOMAIN}" \
+	-set_serial ${SERIAL} \
+	-config <(echo "[req]
+		x509_extensions = v3_ca
+		[v3_ca]
+		subjectKeyIdentifier=hash
+		authorityKeyIdentifier=keyid:always,issuer
+		basicConstraints=critical,CA:TRUE
+		keyUsage=critical,digitalSignature,cRLSign,keyCertSign
+	") \
 	-days ${DAYS} \
 	-key "${CA_PRIVATE_KEY_PEM}" \
 	-out "${CA_CERTIFICATE_PEM}"
+
+# exit pn certificate failure
+[ $? -ne 0 ] && exit 1
 
 # convert PEM-format certificate to DER-format as a convenience
 openssl x509 \
@@ -79,3 +110,13 @@ openssl x509 \
 	-in "${CA_CERTIFICATE_PEM}" \
 	-outform der \
 	-out "${CA_CERTIFICATE_DER}" 
+
+# debugging
+if [ -n "${SSL_DEBUG}" ] ; then
+
+	echo -e "\nDebug: Certificate (lines with hex strings suppressed)\n"
+	openssl x509 -noout -text -in "${CA_CERTIFICATE_PEM}" | \
+	egrep -v "[0-9A-Fa-f]{2,2}:[0-9A-Fa-f]{2,2}:" | \
+	sed -e "s/^/  /"
+
+fi
